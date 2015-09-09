@@ -4,6 +4,7 @@
 
 #import <SDWebImage/SDImageCache.h>
 #import <SDWebImage/SDWebImageManager.h>
+#import "FLAnimatedImage.h"
 
 @implementation SDWebASDKImageManager
 
@@ -35,11 +36,15 @@
         completion(nil);
         return;
     }
-
+    
     NSString *cacheKey = [self.webImageManager cacheKeyForURL:URL];
     [self.webImageManager.imageCache queryDiskCacheForKey:cacheKey done:^(UIImage *image, SDImageCacheType cacheType) {
         dispatch_async(callbackQueue ?: dispatch_get_main_queue(), ^{
-            completion(image.CGImage);
+            if([image isKindOfClass:[FLAnimatedImage class]]) {
+                completion(((FLAnimatedImage *)image).posterImage.CGImage);
+            } else {
+                completion(image.CGImage);
+            }
         });
     }];
 }
@@ -54,7 +59,7 @@
         completion(nil, [NSError errorWithDomain:domain code:0 userInfo:@{NSLocalizedDescriptionKey: description}]);
         return nil;
     }
-
+    
     return [self.webImageManager downloadImageWithURL:URL options:self.webImageOptions progress:^(NSInteger receivedSize, NSInteger expectedSize) {
         if (downloadProgressBlock) {
             dispatch_async(callbackQueue ?: dispatch_get_main_queue(), ^{
@@ -65,9 +70,13 @@
         if (!finished) {
             return;
         }
-
+        
         dispatch_async(callbackQueue ?: dispatch_get_main_queue(), ^{
-            completion(image.CGImage, error);
+            if([image isKindOfClass:[FLAnimatedImage class]]) {
+                completion(((FLAnimatedImage *)image).posterImage.CGImage, error);
+            } else {
+                completion(image.CGImage, error);
+            }
         });
     }];
 }
@@ -77,7 +86,7 @@
     if (!downloadIdentifier) {
         return;
     }
-
+    
     NSAssert([[downloadIdentifier class] conformsToProtocol:@protocol(SDWebImageOperation)], @"Unexpected image download identifier");
     id<SDWebImageOperation> downloadOperation = downloadIdentifier;
     [downloadOperation cancel];
